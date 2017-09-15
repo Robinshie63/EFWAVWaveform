@@ -1,5 +1,7 @@
 ﻿using Microsoft.Research.DynamicDataDisplay;
+using Microsoft.Research.DynamicDataDisplay.Charts.Navigation;
 using Microsoft.Research.DynamicDataDisplay.DataSources;
+using Microsoft.Research.DynamicDataDisplay.ViewportRestrictions;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -32,8 +34,16 @@ namespace test
         public MainWindow()
         {
             InitializeComponent();
-           
+            //SetRange(1, 2, 2, 2);
+
         }
+
+        private void SetRange(double x,double y,double width,double height)
+        {
+
+            plot.Visible = new Rect(x, y, width, height);
+        }
+
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
             target = T1.Text;
@@ -127,9 +137,157 @@ namespace test
                 MessageBox.Show("Not select");
             }
         }
+
+        private void Button_Click_5(object sender, RoutedEventArgs e)
+        {
+            ViewportAxesRangeRestriction restr = new ViewportAxesRangeRestriction();
+            restr.XRange = new DisplayRange(1, 105);
+            plot.Viewport.Restrictions.Add(restr);
+            //var axis = (DateTimeAxis)productPlot.MainHorizontalAxis;
+            //double yMin = 0;
+            //double yMax = 100;
+            //Rect domainRect = new Rect(xMin, yMin, xMax - xMin, yMax - yMin);
+            ////xMin and xMax are left to your discretion based on your DateTimeAxis
+            //
+            //plot.vi = domainRect;
+
+        }
+
+        private void Button_Click_6(object sender, RoutedEventArgs e)
+        {
+            double x;
+            double y;
+            double width;
+            double heigth;
+
+            if (double.TryParse(t1.Text, out x) && double.TryParse(t2.Text, out y) && double.TryParse(t3.Text, out width) && double.TryParse(t4.Text, out heigth))
+                SetRange(x,y,width,heigth);
+
+        }
+
+        double MinX;
+        double MaxX;
+        double MinY;
+        double MaxY;
+        private void plot_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl)
+            {
+        
+            }
+        }
+
+        
+        private void plot_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            Point mousePos = mouseTrack.Position;
+            var tranform = plot.Viewport.Transform;
+            Point mouseData = mousePos.ScreenToData(tranform);
+
+            MinX = mouseData.X;
+            MinY = mouseData.Y;
+
+
+        }
+        private CursorCoordinateGraph mouseTrack;
+        private void plot_Loaded(object sender, RoutedEventArgs e)
+        {
+            mouseTrack = new CursorCoordinateGraph();
+            mouseTrack.Visibility = Visibility.Hidden;
+            plot.Children.Add(mouseTrack);
+
+        }
+
+        private void plot_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+
+        }
+
+        private void plot_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl)
+            {
+                Point mousePos = mouseTrack.Position;
+                var tranform = plot.Viewport.Transform;
+                Point mouseData = mousePos.ScreenToData(tranform);
+
+                MaxX = mouseData.X;
+                MaxY = mouseData.Y;
+
+               
+                ReRangeAxis();
+
+            }
+        }
+
+        private void ReRangeAxis()
+        {
+            double DX = MaxX - MinX;
+
+            double DY = MaxY - MinY;
+            if (DX < 0)
+            {
+                if (DY < 0)
+                {
+
+                    SetRange(MaxX, MaxY, Math.Abs(DX), Math.Abs(DY));
+                }
+                else
+                {
+                    SetRange(MaxX, MinY, Math.Abs(DX), Math.Abs(DY));
+                }
+            }
+            else
+            {
+                if (DY < 0)
+                {
+
+                    SetRange(MinX, MaxY, Math.Abs(DX), Math.Abs(DY));
+                }
+                else
+                {
+                    SetRange(MinX, MinY, Math.Abs(DX), Math.Abs(DY));
+                }
+            }
+        }
     }
 
+    public class DisplayRange
+    {
+        public double Start { get; set; }
+        public double End { get; set; }
 
+        public DisplayRange(double start, double end)
+        {
+            Start = start;
+            End = end;
+        }
+    }
+
+    public class ViewportAxesRangeRestriction : IViewportRestriction
+    {
+        public DisplayRange XRange = null;
+        public DisplayRange YRange = null;
+
+        public Rect Apply(Rect oldVisible, Rect newVisible, Viewport2D viewport)
+        {
+            if (XRange != null)
+            {
+                newVisible.X = XRange.Start;
+                newVisible.Width = XRange.End - XRange.Start;
+            }
+
+            if (YRange != null)
+            {
+                newVisible.Y = YRange.Start;
+                newVisible.Height = YRange.End - YRange.Start;
+            }
+
+            return newVisible;
+        }
+
+        public event EventHandler Changed;
+    }
     class WAVReader
     {
         List<short> listData = new List<short>();
